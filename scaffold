@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+
+daynum = ARGV[0].to_i
+
+if daynum == 0
+  abort "First argument should be day number"
+end
+
+`cargo init --bin day#{daynum}`
+`cd day#{daynum} && cargo add anyhow`
+`cp -r template/* day#{daynum}`
+`gsed -i 's/REPLACE_ME_DAY_NUMBER/#{daynum}/g' day#{daynum}/src/bin/part1.rs`
+`gsed -i 's/REPLACE_ME_DAY_NUMBER/#{daynum}/g' day#{daynum}/src/bin/part2.rs`
+`chmod +x day#{daynum}/part1`
+`chmod +x day#{daynum}/part2`
