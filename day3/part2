@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -eou pipefail
+
+cargo test --bin part2
+cargo run --bin part2
