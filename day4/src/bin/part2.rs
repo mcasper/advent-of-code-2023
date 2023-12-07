@@ -18,7 +18,7 @@ fn solve(lines: Vec<String>) -> i64 {
 
     for (i, line) in lines.iter().enumerate() {
         let card_number = i + 1;
-        let this_card_count = scorecard_count.get(&card_number).unwrap();
+        let this_card_count = scorecard_count.get(&card_number).unwrap().clone();
 
         let mut winners = 0;
         let mut winning: Vec<i64> = vec![];
@@ -44,19 +44,11 @@ fn solve(lines: Vec<String>) -> i64 {
             }
         }
 
-        for _ in 0..*this_card_count {
-            for i in 0..winners {
-                if let Some(v) = scorecard_count.get_mut(&(i + 2)) {
-                    println!("incrementing");
-                    *v += 1;
-                }
+        for i in 0..winners {
+            if let Some(v) = scorecard_count.get_mut(&(card_number + i + 1)) {
+                *v += this_card_count;
             }
         }
-
-        println!(
-            "Card {} had {} copies and {} winners, counts: {:?}",
-            card_number, this_card_count, winners, scorecard_count
-        )
     }
 
     let mut result = 0;
