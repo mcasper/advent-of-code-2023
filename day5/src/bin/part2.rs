@@ -1,3 +1,5 @@
+use std::{collections::HashMap, thread, time::Instant};
+
 use anyhow::Result;
 
 fn main() -> Result<()> {
@@ -7,8 +9,162 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Debug)]
+struct MapRange {
+    dest_start: i64,
+    source_start: i64,
+    size: i64,
+}
+
+#[derive(Clone, Debug)]
+struct Map {
+    from: String,
+    to: String,
+    ranges: Vec<MapRange>,
+}
+
+impl Map {
+    fn new(from: String, to: String) -> Self {
+        Self {
+            from,
+            to,
+            ranges: vec![],
+        }
+    }
+
+    fn add_range(&mut self, dest_start: i64, source_start: i64, range: i64) {
+        self.ranges.push(MapRange {
+            dest_start,
+            source_start,
+            size: range,
+        })
+    }
+
+    fn resolve(&self, n: i64) -> i64 {
+        for range in &self.ranges {
+            if n >= range.source_start && n <= (range.source_start + range.size) {
+                let offset = n - range.source_start;
+                return range.dest_start + offset;
+            }
+        }
+
+        n
+    }
+}
+
+fn find_location(seed: i64, maps: HashMap<String, Map>) -> Result<i64> {
+    let mut current_number = seed;
+    let mut current_kind = "seed";
+
+    while current_kind != "location" {
+        let map = maps.get(current_kind).unwrap();
+        current_kind = &map.to;
+        current_number = map.resolve(current_number);
+    }
+
+    Ok(current_number)
+}
+
 fn solve(lines: Vec<String>) -> i64 {
-    0
+    let mut seeds = vec![];
+    let mut maps: HashMap<String, Map> = HashMap::new();
+
+    let mut pending_map: Option<Map> = None;
+    for line in lines {
+        if line.starts_with("seeds: ") {
+            let temp = line.strip_prefix("seeds: ").unwrap();
+            seeds = temp.split(" ").map(|s| s.parse::<i64>().unwrap()).collect();
+            continue;
+        }
+
+        if line.is_empty() {
+            if let Some(m) = pending_map {
+                maps.insert(m.from.clone(), m);
+            }
+            pending_map = None;
+            continue;
+        }
+
+        if line.contains("map:") {
+            if let Some(m) = pending_map {
+                maps.insert(m.from.clone(), m);
+            }
+
+            let parts = line
+                .strip_suffix(" map:")
+                .unwrap()
+                .split("-to-")
+                .collect::<Vec<&str>>();
+            pending_map = Some(Map::new(parts[0].to_owned(), parts[1].to_owned()));
+            continue;
+        }
+
+        let nums = line
+            .split(" ")
+            .map(|s| s.parse::<i64>().unwrap())
+            .collect::<Vec<i64>>();
+        let map = pending_map.as_mut().unwrap();
+        map.add_range(nums[0], nums[1], nums[2]);
+    }
+
+    if let Some(m) = pending_map {
+        maps.insert(m.from.clone(), m);
+    }
+
+    let mut threads = vec![];
+    let mut i = 0;
+
+    // 13s / 1M
+    // 470M
+
+    // 28580590 too high
+
+    for chunk in seeds.chunks(2) {
+        let ii = i.clone();
+        let start = chunk[0].clone();
+        let size = chunk[1].clone();
+        let mm = maps.clone();
+        let start_time = Instant::now();
+        threads.push(thread::spawn(move || {
+            let mut lowest_seed_number = 9999999999;
+            let mut i = start;
+            let end = i + size;
+            let mut done = 0;
+            while i < end {
+                if done % 1000000 == 0 {
+                    println!(
+                        "[t{}][{}s]: Got through {}/{}",
+                        ii,
+                        start_time.elapsed().as_secs(),
+                        done,
+                        size
+                    );
+                }
+                let location_number = find_location(i, mm.clone()).unwrap();
+                if location_number < lowest_seed_number {
+                    lowest_seed_number = location_number;
+                }
+                i += 1;
+                done += 1;
+            }
+            lowest_seed_number
+        }));
+
+        i += 1;
+    }
+
+    let mut nums = vec![];
+    let mut lowest = 9999999999;
+    for t in threads {
+        let r = t.join().unwrap();
+        if r < lowest {
+            lowest = r;
+        }
+        nums.push(r);
+    }
+
+    println!("Nums: {:?}", nums);
+    lowest
 }
 
 fn lines(path: String) -> Result<Vec<String>> {
@@ -28,7 +184,7 @@ mod tests {
 
     #[test]
     fn test_solve() {
-        let expected = 11111;
+        let expected = 46;
         let actual = solve(lines("src/bin/sample.txt".into()).unwrap());
         assert_eq!(expected, actual);
     }
