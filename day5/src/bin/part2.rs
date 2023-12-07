@@ -11,9 +11,9 @@ fn main() -> Result<()> {
 
 #[derive(Clone, Debug)]
 struct MapRange {
-    dest_start: i64,
-    source_start: i64,
-    size: i64,
+    dest_start: u64,
+    source_start: u64,
+    size: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -32,7 +32,7 @@ impl Map {
         }
     }
 
-    fn add_range(&mut self, dest_start: i64, source_start: i64, range: i64) {
+    fn add_range(&mut self, dest_start: u64, source_start: u64, range: u64) {
         self.ranges.push(MapRange {
             dest_start,
             source_start,
@@ -40,9 +40,9 @@ impl Map {
         })
     }
 
-    fn resolve(&self, n: i64) -> i64 {
+    fn resolve(&self, n: u64) -> u64 {
         for range in &self.ranges {
-            if n >= range.source_start && n <= (range.source_start + range.size) {
+            if n >= range.source_start && n < (range.source_start + range.size) {
                 let offset = n - range.source_start;
                 return range.dest_start + offset;
             }
@@ -52,7 +52,7 @@ impl Map {
     }
 }
 
-fn find_location(seed: i64, maps: HashMap<String, Map>) -> Result<i64> {
+fn find_location(seed: u64, maps: HashMap<String, Map>) -> Result<u64> {
     let mut current_number = seed;
     let mut current_kind = "seed";
 
@@ -65,7 +65,7 @@ fn find_location(seed: i64, maps: HashMap<String, Map>) -> Result<i64> {
     Ok(current_number)
 }
 
-fn solve(lines: Vec<String>) -> i64 {
+fn solve(lines: Vec<String>) -> u64 {
     let mut seeds = vec![];
     let mut maps: HashMap<String, Map> = HashMap::new();
 
@@ -73,7 +73,7 @@ fn solve(lines: Vec<String>) -> i64 {
     for line in lines {
         if line.starts_with("seeds: ") {
             let temp = line.strip_prefix("seeds: ").unwrap();
-            seeds = temp.split(" ").map(|s| s.parse::<i64>().unwrap()).collect();
+            seeds = temp.split(" ").map(|s| s.parse::<u64>().unwrap()).collect();
             continue;
         }
 
@@ -101,8 +101,8 @@ fn solve(lines: Vec<String>) -> i64 {
 
         let nums = line
             .split(" ")
-            .map(|s| s.parse::<i64>().unwrap())
-            .collect::<Vec<i64>>();
+            .map(|s| s.parse::<u64>().unwrap())
+            .collect::<Vec<u64>>();
         let map = pending_map.as_mut().unwrap();
         map.add_range(nums[0], nums[1], nums[2]);
     }
@@ -113,11 +113,6 @@ fn solve(lines: Vec<String>) -> i64 {
 
     let mut threads = vec![];
     let mut i = 0;
-
-    // 13s / 1M
-    // 470M
-
-    // 28580590 too high
 
     for chunk in seeds.chunks(2) {
         let ii = i.clone();
@@ -131,7 +126,7 @@ fn solve(lines: Vec<String>) -> i64 {
             let end = i + size;
             let mut done = 0;
             while i < end {
-                if done % 1000000 == 0 {
+                if done % 10000000 == 0 {
                     println!(
                         "[t{}][{}s]: Got through {}/{}",
                         ii,
