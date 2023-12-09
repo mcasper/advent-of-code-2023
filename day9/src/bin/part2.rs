@@ -8,7 +8,52 @@ fn main() -> Result<()> {
 }
 
 fn solve(lines: Vec<String>) -> i64 {
-    0
+    let mut sum = 0;
+
+    for line in lines {
+        let mut current_nums = line
+            .split(" ")
+            .map(|s| s.parse::<i64>().unwrap())
+            .collect::<Vec<i64>>();
+
+        let mut runs: Vec<Vec<i64>> = vec![current_nums.clone()];
+        let mut decomposing = true;
+
+        while decomposing {
+            let mut differences: Vec<i64> = vec![];
+            for (i, num) in current_nums.iter().enumerate() {
+                let next_num = current_nums.get(i + 1);
+                if next_num.is_none() {
+                    continue;
+                }
+
+                differences.push(next_num.unwrap() - num);
+            }
+
+            if differences.iter().all(|n| n == &0) {
+                decomposing = false;
+            }
+
+            current_nums = differences.clone();
+            runs.push(differences);
+        }
+
+        runs.reverse();
+
+        let mut previous_number = 0;
+        for (i, run) in runs.iter().enumerate() {
+            if i == 0 {
+                continue;
+            }
+
+            let first_number = run.first().unwrap();
+            previous_number = first_number - previous_number;
+        }
+
+        sum += previous_number
+    }
+
+    sum
 }
 
 fn lines(path: String) -> Result<Vec<String>> {
@@ -28,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_solve() {
-        let expected = 11111;
+        let expected = 2;
         let actual = solve(lines("src/bin/sample.txt".into()).unwrap());
         assert_eq!(expected, actual);
     }
