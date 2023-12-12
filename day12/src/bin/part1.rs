@@ -13,12 +13,6 @@ struct Report {
     broken_segments: Vec<usize>,
 }
 
-struct ConfigState {
-    spring_index: usize,
-    remaining_segments: Vec<usize>,
-    indexes: Vec<(usize, usize)>,
-}
-
 impl From<&String> for Report {
     fn from(value: &String) -> Self {
         let parts = value.split(" ").collect::<Vec<&str>>();
@@ -32,94 +26,73 @@ impl From<&String> for Report {
     }
 }
 
-// 4321 - too low
-// 9109 - too big
+fn possibles(cs: Vec<char>, segments: Vec<usize>) -> i64 {
+    if segments.is_empty() {
+        if cs.iter().all(|c| c != &'#') {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    if cs.is_empty() {
+        return 0;
+    }
+
+    if segments.first().unwrap() > &cs.len() {
+        return 0;
+    }
+
+    let ways = match (cs.first(), segments.first()) {
+        (Some('.'), _) => possibles(cs[1..cs.len()].to_vec(), segments),
+        (Some('#'), Some(l)) => {
+            if cs[0..*l].iter().all(|c| c == &'#' || c == &'?')
+                && cs.get(*l).unwrap_or(&'a') != &'#'
+            {
+                let remaining = if *l >= cs.len() {
+                    vec![]
+                } else {
+                    cs[*l + 1..cs.len()].to_vec()
+                };
+                possibles(remaining, segments[1..segments.len()].to_vec())
+            } else {
+                0
+            }
+        }
+        (Some('?'), Some(l)) => {
+            if cs[0..*l].iter().all(|c| c == &'#' || c == &'?')
+                && cs.get(*l).unwrap_or(&'a') != &'#'
+            {
+                let remaining = if *l >= cs.len() {
+                    vec![]
+                } else {
+                    cs[*l + 1..cs.len()].to_vec()
+                };
+
+                possibles(remaining, segments[1..segments.len()].to_vec())
+                    + possibles(cs[1..cs.len()].to_vec(), segments)
+            } else {
+                possibles(cs[1..cs.len()].to_vec(), segments)
+            }
+        }
+        (None, _) => 0,
+        (_, None) => 0,
+        (a, b) => unreachable!("unhandled case {:?},{:?}", a, b),
+    };
+    // cache
+    ways
+}
 
 fn solve(lines: Vec<String>) -> i64 {
     let reports: Vec<Report> = lines.iter().map(|l| l.into()).collect();
-    let mut configurations: Vec<Vec<(usize, usize)>> = vec![];
+    let mut configs = 0;
 
-    for (i, report) in reports.iter().enumerate() {
-        let mut states = vec![ConfigState {
-            spring_index: 0,
-            remaining_segments: report.broken_segments.clone(),
-            indexes: vec![],
-        }];
-
-        let mut report_count = 0;
-
-        while states.len() > 0 {
-            let mut next_states: Vec<ConfigState> = vec![];
-
-            for state in &states {
-                if state.remaining_segments.is_empty() {
-                    if report.springs.iter().enumerate().all(|(ci, c)| {
-                        if c == &'#' {
-                            state
-                                .indexes
-                                .iter()
-                                .any(|(start, end)| start <= &ci && end >= &ci)
-                            // check to make sure it's covered
-                        } else {
-                            true
-                        }
-                    }) {
-                        configurations.push(state.indexes.clone());
-                        report_count += 1;
-                    }
-                    continue;
-                }
-                if state.spring_index >= report.springs.len() {
-                    continue;
-                }
-
-                next_states.push(ConfigState {
-                    spring_index: state.spring_index + 1,
-                    remaining_segments: state.remaining_segments.clone(),
-                    indexes: state.indexes.clone(),
-                });
-
-                let next_char = report.springs[state.spring_index];
-                if next_char == '?' || next_char == '#' {
-                    let next_length = state.remaining_segments.first().unwrap();
-                    if state.spring_index + next_length > report.springs.len() {
-                        continue;
-                    }
-                    if (state.spring_index..(state.spring_index + next_length))
-                        .all(|i| report.springs[i] == '?' || report.springs[i] == '#')
-                    {
-                        if state.spring_index + next_length < report.springs.len()
-                            && report.springs[state.spring_index + next_length] == '#'
-                        {
-                            continue;
-                        }
-
-                        if state.spring_index > 0 && report.springs[state.spring_index - 1] == '#' {
-                            continue;
-                        }
-
-                        let mut new_indexes = state.indexes.clone();
-                        new_indexes
-                            .push((state.spring_index, state.spring_index + next_length - 1));
-                        next_states.push(ConfigState {
-                            spring_index: state.spring_index + next_length + 1,
-                            remaining_segments: state.remaining_segments
-                                [1..state.remaining_segments.len()]
-                                .to_vec(),
-                            indexes: new_indexes,
-                        });
-                    }
-                }
-            }
-
-            states = next_states;
-        }
-
-        // println!("Report {} has {} valid configurations", i, report_count);
+    for report in reports {
+        let count = possibles(report.springs.clone(), report.broken_segments.clone());
+        configs += count;
     }
 
-    configurations.dedup();
-    configurations.len() as i64
+    configs
 }
 
 fn lines(path: String) -> Result<Vec<String>> {
